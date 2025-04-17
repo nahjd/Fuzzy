@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fourier Siqnal Analizi</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        .inputs {
+            margin-bottom: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h2>Fourier Siqnal Analizi</h2>
+    
+    <div class="inputs">
+        <label for="a0">a0:</label>
+        <input type="number" id="a0" value="0" step="0.1">
+        <br><br>
+
+        <label for="omega0">ω₀:</label>
+        <input type="number" id="omega0" value="1" step="0.1">
+        <br><br>
+
+        <label for="nmax">n_max:</label>
+        <input type="number" id="nmax" value="3" step="1" min="1" onchange="generateInputs()">
+        <br><br>
+
+        <div id="harmonicInputs"></div>
+        <button onclick="drawFourier()">Siqnalı Çəkmək</button>
+    </div>
+
+    <canvas id="fourierChart"></canvas>
+    <canvas id="harmonicsChart"></canvas>
+
+    <script>
+        let mainChart, harmonicsChart;
+
+        function generateInputs() {
+            let nmax = parseInt(document.getElementById("nmax").value);
+            let container = document.getElementById("harmonicInputs");
+            container.innerHTML = "";
+            
+            for (let i = 1; i <= nmax; i++) {
+                let labelA = document.createElement("label");
+                labelA.innerText = `a${i}: `;
+                let inputA = document.createElement("input");
+                inputA.type = "number";
+                inputA.id = `a${i}`;
+                inputA.value = "0";
+                inputA.step = "0.1";
+                
+                let labelB = document.createElement("label");
+                labelB.innerText = ` b${i}: `;
+                let inputB = document.createElement("input");
+                inputB.type = "number";
+                inputB.id = `b${i}`;
+                inputB.value = "0";
+                inputB.step = "0.1";
+                
+                container.appendChild(labelA);
+                container.appendChild(inputA);
+                container.appendChild(labelB);
+                container.appendChild(inputB);
+                container.appendChild(document.createElement("br"));
+                container.appendChild(document.createElement("br"));
+            }
+        }
+
+        function fourierSeries(a0, omega0, an_bn, samples = 1000) {
+            let t = Array.from({ length: samples }, (_, i) => (i / samples) * (2 * Math.PI));
+            let x_t = t.map(() => a0 / 2);
+            let harmonics = an_bn.map(() => t.map(() => 0));
+
+            for (let n = 1; n <= an_bn.length; n++) {
+                let a = an_bn[n - 1].a;
+                let b = an_bn[n - 1].b;
+                let harmonic = t.map((val, i) => a * Math.cos(n * omega0 * val) + b * Math.sin(n * omega0 * val));
+                harmonics[n - 1] = harmonic;
+                x_t = x_t.map((val, i) => val + harmonic[i]);
+            }
+
+            return { t, x_t, harmonics };
+        }
+
+        function drawFourier() {
+            let a0 = parseFloat(document.getElementById("a0").value);
+            let omega0 = parseFloat(document.getElementById("omega0").value);
+            let nmax = parseInt(document.getElementById("nmax").value);
+            let an_bn = [];
+
+            for (let i = 1; i <= nmax; i++) {
+                let a = parseFloat(document.getElementById(`a${i}`).value) || 0;
+                let b = parseFloat(document.getElementById(`b${i}`).value) || 0;
+                an_bn.push({ a, b });
+            }
+
+            let { t, x_t, harmonics } = fourierSeries(a0, omega0, an_bn);
+
+            if (mainChart) mainChart.destroy();
+            if (harmonicsChart) harmonicsChart.destroy();
+
+            let ctx1 = document.getElementById("fourierChart").getContext("2d");
+            mainChart = new Chart(ctx1, {
+                type: "line",
+                data: {
+                    labels: t.map(v => v.toFixed(2)),
+                    datasets: [{
+                        label: "Fourier Siqnalı X(iΔt)",
+                        data: x_t,
+                        borderColor: "blue",
+                        fill: false,
+                        borderWidth: 2,
+                        pointRadius: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { display: false },
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+
+            let ctx2 = document.getElementById("harmonicsChart").getContext("2d");
+            harmonicsChart = new Chart(ctx2, {
+                type: "line",
+                data: {
+                    labels: t.map(v => v.toFixed(2)),
+                    datasets: harmonics.map((harmonic, index) => ({
+                        label: `Harmonik ${index + 1} (sin/kos bileşeni)`,
+                        data: harmonic,
+                        borderColor: `hsl(${index * 120}, 70%, 50%)`,
+                        fill: false,
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: { display: false },
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+        }
+
+        generateInputs();
+        drawFourier();
+    </script>
+</body>
+</html>
