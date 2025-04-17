@@ -41,6 +41,7 @@
     </div>
 
     <canvas id="fourierChart"></canvas>
+    <p id="pointCount" style="text-align:center; font-weight:bold; margin-top:10px;"></p>
     <canvas id="harmonicsChart"></canvas>
 
     <script>
@@ -77,14 +78,14 @@
             }
         }
 
-        function fourierSeries(a0, omega0, an_bn, samples = 1000) {
+        function fourierSeries(a0, omega0, N, samples = 1000) {
             let t = Array.from({ length: samples }, (_, i) => (i / samples) * (2 * Math.PI));
             let x_t = t.map(() => a0 / 2);
-            let harmonics = an_bn.map(() => t.map(() => 0));
+            let harmonics = N.map(() => t.map(() => 0));
 
-            for (let n = 1; n <= an_bn.length; n++) {
-                let a = an_bn[n - 1].a;
-                let b = an_bn[n - 1].b;
+            for (let n = 1; n <= N.length; n++) {
+                let a = N[n - 1].a;
+                let b = N[n - 1].b;
                 let harmonic = t.map((val, i) => a * Math.cos(n * omega0 * val) + b * Math.sin(n * omega0 * val));
                 harmonics[n - 1] = harmonic;
                 x_t = x_t.map((val, i) => val + harmonic[i]);
@@ -97,38 +98,69 @@
             let a0 = parseFloat(document.getElementById("a0").value);
             let omega0 = parseFloat(document.getElementById("omega0").value);
             let nmax = parseInt(document.getElementById("nmax").value);
-            let an_bn = [];
+            let N = [];
 
             for (let i = 1; i <= nmax; i++) {
                 let a = parseFloat(document.getElementById(`a${i}`).value) || 0;
                 let b = parseFloat(document.getElementById(`b${i}`).value) || 0;
-                an_bn.push({ a, b });
+                N.push({ a, b });
             }
 
-            let { t, x_t, harmonics } = fourierSeries(a0, omega0, an_bn);
+            let { t, x_t, harmonics } = fourierSeries(a0, omega0, N);
 
             if (mainChart) mainChart.destroy();
             if (harmonicsChart) harmonicsChart.destroy();
+
+            let uniquePointsMap = {};
+            let scatterPoints = [];
+
+            x_t.forEach((val, i) => {
+                let key = val.toFixed(2);
+                if (!uniquePointsMap[key]) {
+                    uniquePointsMap[key] = true;
+                    scatterPoints.push({
+                        x: t[i],
+                        y: val
+                    });
+                }
+            });
+
+            document.getElementById("pointCount").textContent = `Unikal keçid nöqtələrinin sayı: ${scatterPoints.length}`;
 
             let ctx1 = document.getElementById("fourierChart").getContext("2d");
             mainChart = new Chart(ctx1, {
                 type: "line",
                 data: {
                     labels: t.map(v => v.toFixed(2)),
-                    datasets: [{
-                        label: "Fourier Siqnalı X(iΔt)",
-                        data: x_t,
-                        borderColor: "blue",
-                        fill: false,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                    }]
+                    datasets: [
+                        {
+                            label: "Fourier Siqnalı",
+                            data: x_t,
+                            borderColor: "blue",
+                            fill: false,
+                            tension: 0.3,
+                            borderWidth: 1.2,
+                            pointRadius: 0,
+                        },
+                        {
+                            label: "Keçid Nöqtələri",
+                            data: scatterPoints,
+                            backgroundColor: "red",
+                            pointRadius: 2.5,
+                            showLine: false
+                        }
+                    ]
                 },
                 options: {
                     responsive: true,
                     scales: {
                         x: { display: false },
                         y: { beginAtZero: false }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
                     }
                 }
             });
@@ -139,7 +171,7 @@
                 data: {
                     labels: t.map(v => v.toFixed(2)),
                     datasets: harmonics.map((harmonic, index) => ({
-                        label: `Harmonik ${index + 1} (sin/kos bileşeni)`,
+                        label: `Harmonik ${index + 1}`,
                         data: harmonic,
                         borderColor: `hsl(${index * 120}, 70%, 50%)`,
                         fill: false,
